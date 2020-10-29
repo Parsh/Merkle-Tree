@@ -54,7 +54,7 @@ class Merkle {
     if (!this.merkleTree.length)
       throw new Error("Please generate a merkle tree prior to logging");
 
-    console.log("\n\n\t\t\tMerkle Tree\n\n");
+    console.info("\n\n\t\t\tMerkle Tree\n\n");
     let layerIndex = 0;
     this.merkleTree.forEach((merkleLayer) => {
       console.info(
@@ -95,9 +95,11 @@ class Merkle {
         const merkleIndex = merkleLayer.indexOf(merkleHash);
 
         if (merkleIndex % 2 == 0) {
-          const nextMerkleHash = merkleLayer[merkleIndex + 1];
-          merklePath.push({ hash: nextMerkleHash, offset: 1 }); // offset is used during self validation of tx-inclusion using the merkle path
-          merkleHash = Merkle.doubleSHA256(merkleHash + nextMerkleHash);
+          if (merkleIndex < merkleLayer.length - 1) {
+            const nextMerkleHash = merkleLayer[merkleIndex + 1];
+            merklePath.push({ hash: nextMerkleHash, offset: 1 }); // offset is used during self validation of tx-inclusion using the merkle path
+            merkleHash = Merkle.doubleSHA256(merkleHash + nextMerkleHash);
+          }
         } else {
           const prevMerkleHash = merkleLayer[merkleIndex - 1];
           merklePath.push({ hash: prevMerkleHash, offset: -1 });
@@ -128,11 +130,11 @@ const txids = [
 // generating a merkle tree
 const merkle = new Merkle();
 const merkle_root = merkle.generate_merkle_root(txids);
-console.log("Merkle Root: ", merkle_root);
+console.info("\nMerkle Root: ", merkle_root);
 merkle.log_merkle_tree();
 
 // checking whether a particular txid is present in the merkle tree
-const txId = "ec80f774a7e585c6e82b79a236ec46359f0868171b166d98fad6b012c8ed2b59";
+const txId = "522137b80ce9a66845e05d5abc09a1dad04ec80f774a7e585c6e8db975962d06";
 const { hasTransaction, merklePath, merkleRoot } = merkle.hasTransaction(txId);
 
 // self validate that the merkle path, inconjunction with txId's hash, leads to merkle root
@@ -144,17 +146,22 @@ const validateUsingMerklePath = (txId, merklePath, merkleRoot) => {
       regeneratedRoot = Merkle.doubleSHA256(regeneratedRoot + hash);
     else regeneratedRoot = Merkle.doubleSHA256(hash + regeneratedRoot);
   });
-  //   console.log({regeneratedRoot, merkleRoot})
+  // console.info({regeneratedRoot, merkleRoot})
   return regeneratedRoot === merkleRoot;
 };
 
+console.info("\n\t\t\tResult\n");
 if (hasTransaction) {
-  console.info(`Merkle tree do contain the supplied txid: ${txId}`);
-  console.log({ merklePath, merkleRoot });
+  console.info(`Merkle tree do contain the supplied txid: ${txId}\n`);
+  // console.info({ merklePath, merkleRoot });
+  const path = [];
+  merklePath.forEach(({ hash }) => path.push(hash));
+  console.info("Merkle path: ", path.join(" -- -- "), "\n");
   console.info(
     "Self Validation successful: ",
-    validateUsingMerklePath(txId, merklePath, merkleRoot)
+    validateUsingMerklePath(txId, merklePath, merkleRoot),
+    "\n"
   );
 } else {
-  console.info(`Merkle tree does not contain the following txid: ${txId}`);
+  console.info(`Merkle tree does not contain the following txid: ${txId}\n`);
 }
