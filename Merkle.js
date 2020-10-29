@@ -113,3 +113,48 @@ class Merkle {
     }
   }
 }
+
+// SMOKE TEST :: Merkle Tree
+const txids = [
+  "162e6f3dbbfb62ac1d1ff30f8b955a824984aefa3d06d878c14f0db3df150123",
+  "525b8931402dd09222c50775608f7578fff79702c427bd2b87e56995a7bdd30f",
+  "66d98fad6b012c8ed2b79a236ec46359f0868171b1d194cbee1af2f16ea598ae",
+  "522137b80ce9a66845e05d5abc09a1dad04ec80f774a7e585c6e8db975962d06",
+  "80c1de9a66845e05d5abc0ad04ec80f774a7e585c6e8db975962d069a522137b",
+  "f774a7e585c6e8db976845e05d5abc0ad04ec805962d069a522137b80c1de9a6",
+  "ec80f774a7e585c6e82b79a236ec46359f0868171b166d98fad6b012c8ed2b59",
+];
+
+// generating a merkle tree
+const merkle = new Merkle();
+const merkle_root = merkle.generate_merkle_root(txids);
+console.log("Merkle Root: ", merkle_root);
+merkle.log_merkle_tree();
+
+// checking whether a particular txid is present in the merkle tree
+const txId = "ec80f774a7e585c6e82b79a236ec46359f0868171b166d98fad6b012c8ed2b59";
+const { hasTransaction, merklePath, merkleRoot } = merkle.hasTransaction(txId);
+
+// self validate that the merkle path, inconjunction with txId's hash, leads to merkle root
+const validateUsingMerklePath = (txId, merklePath, merkleRoot) => {
+  const txHash = Merkle.doubleSHA256(txId);
+  let regeneratedRoot = txHash; // re-generating the root based on merkle path
+  merklePath.forEach(({ hash, offset }) => {
+    if (offset === 1)
+      regeneratedRoot = Merkle.doubleSHA256(regeneratedRoot + hash);
+    else regeneratedRoot = Merkle.doubleSHA256(hash + regeneratedRoot);
+  });
+  //   console.log({regeneratedRoot, merkleRoot})
+  return regeneratedRoot === merkleRoot;
+};
+
+if (hasTransaction) {
+  console.info(`Merkle tree do contain the supplied txid: ${txId}`);
+  console.log({ merklePath, merkleRoot });
+  console.info(
+    "Self Validation successful: ",
+    validateUsingMerklePath(txId, merklePath, merkleRoot)
+  );
+} else {
+  console.info(`Merkle tree does not contain the following txid: ${txId}`);
+}
