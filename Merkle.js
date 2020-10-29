@@ -6,6 +6,7 @@ class Merkle {
   }
 
   static doubleSHA256(data) {
+    // returns sha256(sha256(data))
     const hash = crypto.createHash("sha256").update(data).digest("hex");
     const doubleHash = crypto.createHash("sha256").update(hash).digest("hex");
     return doubleHash;
@@ -32,7 +33,7 @@ class Merkle {
       const previousMerkleLayer = this.merkleTree[0];
       for (let index = 0; index < previousMerkleLayer.length; index += 2) {
         if (index % 2 == 0 && index < previousMerkleLayer.length - 1) {
-          // forwards the squashed has to the next merkle layer
+          // forwards the squashed hash to the next merkle layer
           const merkleHash = previousMerkleLayer[index];
           const adjacentMerkleHash = previousMerkleLayer[index + 1];
           nextMerkleLayer.push(
@@ -51,6 +52,8 @@ class Merkle {
   }
 
   log_merkle_tree() {
+    // logs the cached(state) merkle tree
+
     if (!this.merkleTree.length)
       throw new Error("Please generate a merkle tree prior to logging");
 
@@ -71,12 +74,12 @@ class Merkle {
   }
 
   hasTransaction(transactionId) {
-    // returns whether the txn is included or not in the cached merkle tree, in case of containment a merkle path is provided along w/ merkle root for self validation
+    // returns whether the txn is included or not in the cached merkle tree,
+    // in case of containment a merkle path is provided along w/ merkle root
+    // for self validation
 
     if (!this.merkleTree.length)
-      throw new Error(
-        "Please generate a merkle tree prior to checking for containment"
-      );
+      throw new Error("Please generate a merkle tree prior to inclusion check");
 
     const txHash = Merkle.doubleSHA256(transactionId);
 
@@ -89,7 +92,8 @@ class Merkle {
       // returns the merkle path w/ merkle root
       const merklePath = [];
       let merkleHash = txHash;
-      for (const merkleLayer of [...this.merkleTree].reverse()) {
+      const reverseMerkleTree = [...this.merkleTree].reverse(); // will move bottom-up; tracing the merkle path
+      for (const merkleLayer of reverseMerkleTree) {
         if (merkleLayer.length < 2) break; // break away at merkle root
 
         const merkleIndex = merkleLayer.indexOf(merkleHash);
@@ -99,7 +103,7 @@ class Merkle {
             const nextMerkleHash = merkleLayer[merkleIndex + 1];
             merklePath.push({ hash: nextMerkleHash, offset: 1 }); // offset is used during self validation of tx-inclusion using the merkle path
             merkleHash = Merkle.doubleSHA256(merkleHash + nextMerkleHash);
-          }
+          } // merkleIndex == merkleLayer.length - 1(odd closing index) is ignored till it becomes evenly pairable(ready for squashed hashing)
         } else {
           const prevMerkleHash = merkleLayer[merkleIndex - 1];
           merklePath.push({ hash: prevMerkleHash, offset: -1 });
@@ -137,7 +141,7 @@ merkle.log_merkle_tree();
 const txId = "522137b80ce9a66845e05d5abc09a1dad04ec80f774a7e585c6e8db975962d06";
 const { hasTransaction, merklePath, merkleRoot } = merkle.hasTransaction(txId);
 
-// self validate that the merkle path, inconjunction with txId's hash, leads to merkle root
+// self validate that the merkle path, in conjunction with txId's hash, leads to merkle root
 const validateUsingMerklePath = (txId, merklePath, merkleRoot) => {
   const txHash = Merkle.doubleSHA256(txId);
   let regeneratedRoot = txHash; // re-generating the root based on merkle path
@@ -146,14 +150,12 @@ const validateUsingMerklePath = (txId, merklePath, merkleRoot) => {
       regeneratedRoot = Merkle.doubleSHA256(regeneratedRoot + hash);
     else regeneratedRoot = Merkle.doubleSHA256(hash + regeneratedRoot);
   });
-  // console.info({regeneratedRoot, merkleRoot})
   return regeneratedRoot === merkleRoot;
 };
 
 console.info("\n\t\t\tResult\n");
 if (hasTransaction) {
   console.info(`Merkle tree do contain the supplied txid: ${txId}\n`);
-  // console.info({ merklePath, merkleRoot });
   const path = [];
   merklePath.forEach(({ hash }) => path.push(hash));
   console.info("Merkle path: ", path.join(" -- -- "), "\n");
