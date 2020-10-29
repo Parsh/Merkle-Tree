@@ -50,6 +50,26 @@ class Merkle {
     return merkleRoot;
   }
 
+  log_merkle_tree() {
+    if (!this.merkleTree.length)
+      throw new Error("Please generate a merkle tree prior to logging");
+
+    console.log("\n\n\t\t\tMerkle Tree\n\n");
+    let layerIndex = 0;
+    this.merkleTree.forEach((merkleLayer) => {
+      console.info(
+        `${
+          layerIndex === 0
+            ? "Root " // Root merkle layer(merkle-root)
+            : layerIndex === this.merkleTree.length - 1
+            ? "Base " // Base merkle layer
+            : "Inter" // Intermediate merkle layer
+        }: ${merkleLayer.join(" -- -- ")}\n`
+      );
+      layerIndex++;
+    });
+  }
+
   hasTransaction(transactionId) {
     // returns whether the txn is included or not in the cached merkle tree, in case of containment a merkle path is provided along w/ merkle root for self validation
 
